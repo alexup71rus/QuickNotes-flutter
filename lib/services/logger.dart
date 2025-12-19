@@ -14,7 +14,7 @@ class Logger {
   static Future<void> _write(String level, String message) async {
     try {
       final logsDir = await DataPaths.logsDirectory;
-      final logFile = File(p.join(logsDir.path, 'quicknotes.log'));
+      final logFile = File(p.join(logsDir.path, 'app.log'));
 
       final timestamp = DateTime.now().toIso8601String();
       final line = '[$timestamp] $level: $message\n';

@@ -21,7 +21,8 @@ class _PopoverViewState extends State<PopoverView> {
   Note? _currentNote;
   Timer? _saveTimer;
   bool _manualTitleEdited = false;
-  bool _isLoading = false;
+  bool _isLoading = true;
+  bool _isInitialLoadStarted = false;
 
   @override
   void initState() {
@@ -33,7 +34,9 @@ class _PopoverViewState extends State<PopoverView> {
   @override
   void dispose() {
     _saveTimer?.cancel();
-    _flushSave();
+    if (!_isLoading) {
+      _flushSave();
+    }
     _textController.dispose();
     _titleController.dispose();
     _settings.removeListener(_onSettingsChanged);
@@ -41,7 +44,7 @@ class _PopoverViewState extends State<PopoverView> {
   }
 
   void _onSettingsChanged() {
-    if (mounted) {
+    if (mounted && !_isLoading) {
       // Reload notes when sort order changes
       _reloadNotes(selectNote: _currentNote);
       // Force rebuild to apply fontSize and backgroundColor changes
@@ -50,12 +53,14 @@ class _PopoverViewState extends State<PopoverView> {
   }
 
   Future<void> _loadNotes() async {
-    setState(() => _isLoading = true);
+    if (_isInitialLoadStarted) return;
+    _isInitialLoadStarted = true;
 
     final notes = await Storage.listNotes();
 
     if (notes.isEmpty) {
       final newNote = await Storage.createNew('');
+      if (!mounted) return;
       if (newNote != null) {
         setState(() {
           _notes = [newNote];
@@ -71,6 +76,7 @@ class _PopoverViewState extends State<PopoverView> {
     } else {
       final firstNote = notes.first;
       final isDate = _isDateTitle(firstNote.baseName);
+      if (!mounted) return;
       setState(() {
         _notes = notes;
         _currentNote = firstNote;
@@ -83,7 +89,10 @@ class _PopoverViewState extends State<PopoverView> {
   }
 
   Future<void> _reloadNotes({Note? selectNote}) async {
+    if (_isLoading) return;
+    
     final notes = await Storage.listNotes();
+    if (!mounted) return;
 
     if (notes.isEmpty) {
       setState(() {
@@ -195,6 +204,9 @@ class _PopoverViewState extends State<PopoverView> {
   }
 
   Future<void> _flushSave() async {
+    if (_isLoading) {
+      return;
+    }
     _saveTimer?.cancel();
 
     final text = _textController.text;
